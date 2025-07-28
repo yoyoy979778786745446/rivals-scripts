@@ -1,0 +1,216 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Window = Rayfield:CreateWindow({
+    Name = "Rivals ESP & Aimbot",
+    LoadingTitle = "Rivals Script",
+    LoadingSubtitle = "Made by Ayoung",
+    ConfigurationSaving = {
+        Enabled = false,
+        FolderName = nil,
+        FileName = "RivalsScript"
+    },
+    Discord = {
+        Enabled = true,
+        Invite = "5MrEpWjakH",
+        RememberJoins = true
+    },
+    KeySystem = false
+})
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local ESPEnabled = false
+local AimbotEnabled = false
+local RapidFireEnabled = false
+local AimbotKey = Enum.UserInputType.MouseButton2
+local Highlights = {}
+local FOVRadius = 150
+local RapidFireDelay = 0.05
+local FOVCircle = Drawing.new("Circle")
+
+FOVCircle.Visible = false
+FOVCircle.Thickness = 2
+FOVCircle.Color = Color3.fromRGB(0, 255, 0)
+FOVCircle.Filled = false
+FOVCircle.Radius = FOVRadius
+FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+local function createHighlight(player)
+    if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local highlight = Instance.new("Highlight")
+        highlight.Adornee = player.Character
+        highlight.FillColor = Color3.fromRGB(255, 0, 0)
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0
+        highlight.Parent = player.Character
+        Highlights[player] = highlight
+    end
+end
+
+local function removeHighlight(player)
+    if Highlights[player] then
+        Highlights[player]:Destroy()
+        Highlights[player] = nil
+    end
+end
+
+local function updateESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        if ESPEnabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player ~= LocalPlayer then
+            if not Highlights[player] then
+                createHighlight(player)
+            end
+        else
+            removeHighlight(player)
+        end
+    end
+end
+
+local function getClosestPlayer()
+    local closestPlayer = nil
+    local closestDistance = math.huge
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local head = player.Character.Head
+            local position, onScreen = Camera:WorldToViewportPoint(head.Position)
+            if onScreen then
+                local distance = (center - Vector2.new(position.X, position.Y)).Magnitude
+                if distance < closestDistance and distance <= FOVRadius then
+                    closestDistance = distance
+                    closestPlayer = player
+                end
+            end
+        end
+    end
+    return closestPlayer
+end
+
+local function aimAtPlayer()
+    if AimbotEnabled then
+        local closestPlayer = getClosestPlayer()
+        if closestPlayer and closestPlayer.Character and closestPlayer.Character:FindFirstChild("Head") then
+            local headPosition = closestPlayer.Character.Head.Position
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, headPosition)
+        end
+    end
+end
+
+local function rapidFire()
+    if RapidFireEnabled then
+        local tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+        if tool then
+            tool:Activate()
+            wait(RapidFireDelay)
+        end
+    end
+end
+
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        if ESPEnabled then
+            createHighlight(player)
+        end
+    end)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    removeHighlight(player)
+end)
+
+UserInputService.InputBegan:Connect(function(input)
+    if input.UserInputType == AimbotKey then
+        AimbotEnabled = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == AimbotKey then
+        AimbotEnabled = false
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if ESPEnabled then
+        updateESP()
+    end
+    if AimbotEnabled then
+        aimAtPlayer()
+    end
+    if RapidFireEnabled then
+        rapidFire()
+    end
+end)
+
+local MainTab = Window:CreateTab("Main", nil)
+local MainSection = MainTab:CreateSection("Features")
+
+MainTab:CreateToggle({
+    Name = "Enable ESP",
+    CurrentValue = false,
+    Callback = function(Value)
+        ESPEnabled = Value
+        if not Value then
+            for _, player in pairs(Players:GetPlayers()) do
+                removeHighlight(player)
+            end
+        end
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "Enable Aimbot (Right Click)",
+    CurrentValue = false,
+    Callback = function(Value)
+        AimbotEnabled = Value
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "Show FOV Circle",
+    CurrentValue = false,
+    Callback = function(Value)
+        FOVCircle.Visible = Value
+    end
+})
+
+MainTab:CreateSlider({
+    Name = "FOV Radius",
+    Range = {50, 500},
+    Increment = 10,
+    CurrentValue = 150,
+    Callback = function(Value)
+        FOVRadius = Value
+        FOVCircle.Radius = Value
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "Enable Rapid Fire",
+    CurrentValue = false,
+    Callback = function(Value)
+        RapidFireEnabled = Value
+    end
+})
+
+MainTab:CreateSlider({
+    Name = "Rapid Fire Delay (s)",
+    Range = {0.01, 0.5},
+    Increment = 0.01,
+    CurrentValue = 0.05,
+    Callback = function(Value)
+        RapidFireDelay = Value
+    end
+})
+
+Rayfield:Notify({
+    Title = "Script Loaded",
+    Content = "ESP, Aimbot with FOV, and Rapid Fire loaded. Toggle features in the GUI.",
+    Duration = 5,
+    Image = nil
+})
